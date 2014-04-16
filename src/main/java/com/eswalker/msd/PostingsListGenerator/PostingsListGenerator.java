@@ -102,7 +102,7 @@ public class PostingsListGenerator extends Configured implements Tool{
         * In key = tag
         * In values = track_id,score,num_tags,last_score
         * 
-        * Out value = tag|track_id1,score1,num_tags1,last_score1|track_id2,score2,num_tags2,last_score2|...
+        * Out value = tag|track_id1,score1|track_id2,score2|...
         *
         */
         public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
