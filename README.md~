@@ -19,4 +19,4 @@ Maps `track_id|lastfm_id|artist|track|num_tags|tag1,score1|tag2,score2...` to ke
 Reducer
 -------
 
-Concatenates key `tag` and values `track_id,score,numTag,lastScore` to `tag|track_id1,score1|track_id2,score2...` sorted by popularity of track
+Concatenates key `tag` and values `track_id,score,numTag,lastScore` to `tag|track_id1,score1|track_id2,score2...` sorted by popularity
