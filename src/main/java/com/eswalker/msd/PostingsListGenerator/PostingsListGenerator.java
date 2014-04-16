@@ -1,11 +1,9 @@
 package com.eswalker.msd.PostingsListGenerator;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -42,20 +40,26 @@ public class PostingsListGenerator extends Configured implements Tool{
 		 * In Value = track_id|lastfm_id|artist|title|num_tags|tag1,score1|tag2,score2|...
 		 * 
 		 * Out Key = tag
-		 * Out Value = track_id,score
+		 * Out Value = track_id,score,num_tags,last_score
 		 */
 		public final void map(final LongWritable key, final Text value, Context context) throws IOException, InterruptedException {
 			
-			String data[] = Split.charSplit(value.toString(), '|');
+			String line = value.toString();			
+			String[] data = line.split("\\|");
+			
+			if (data.length < 6) return;
+			
 			String trackID = data[0];
+			String numTags = data[4];
+			String lastScore = value.toString().substring(value.toString().lastIndexOf(',') + 1);
 			for (int i = 5; i < data.length; i++) {
 				String tagAndScore = data[i];
-				String data2[] = Split.commaSplit(tagAndScore);
+				String data2[] = tagAndScore.split(",");
 				if (data2.length == 2) {
 					String tag = data2[0];
 					String score = data2[1];
 					outputKey.set(tag);
-					outputValue.set(trackID + "," + score);
+					outputValue.set(trackID + "," + score + "," + numTags + "," + lastScore);
 					context.write(outputKey, outputValue);
 				}
 			}
@@ -64,6 +68,26 @@ public class PostingsListGenerator extends Configured implements Tool{
 		
 	}
 
+	public static class Track implements Comparable<Track>{
+		public String trackId;
+		public int score;
+		public int numTags;
+		public int lastScore;
+	
+		public String toString() { return trackId + "," + score; }
+
+		public int compareTo(Track that) {
+			if (this.score == that.score) { 
+				if (this.numTags == that.numTags) {
+					if (this.lastScore == that.lastScore) {
+						return 0;
+					} else {return that.lastScore - this.lastScore;}
+				} else { return that.numTags - this.numTags; }
+			} else { return that.score - this.score; }
+		}
+
+		
+	}
 	
 	public static class HReducer extends Reducer<Text, Text, NullWritable, Text> {
 		private static NullWritable nullKey = NullWritable.get();
@@ -76,18 +100,36 @@ public class PostingsListGenerator extends Configured implements Tool{
         * Function = concatenate values
         * 
         * In key = tag
-        * In values = track_id,score
+        * In values = track_id,score,num_tags,last_score
         * 
-        * Out value = tag|track_id1,score1|track_id2,score2|...
+        * Out value = tag|track_id1,score1,num_tags1,last_score1|track_id2,score2,num_tags2,last_score2|...
         *
         */
         public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        	ArrayList<Track> tracks = new ArrayList<Track>();
+        	for (Text t : values) { 
+        		String[] data = t.toString().split(",");
+        		Track tr = new Track();
+        		tr.trackId = data[0];
+        		tr.score = Integer.parseInt(data[1]);
+        		tr.numTags = Integer.parseInt(data[2]);
+        		tr.lastScore = Integer.parseInt(data[3]);
+        		tracks.add(tr);
+        	}
+    
+        	Track[] aTracks = new Track[tracks.size()];
         	
+        	tracks.toArray(aTracks);
         	
+        	tracks.clear(); System.gc();
+        	
+        	Arrays.sort(aTracks);
+        	
+        
         	StringBuilder sb = new StringBuilder();
         	sb.append(key.toString()); sb.append('|');
-        	for (Text t : values) {
-        		sb.append(t.toString()); sb.append('|');
+        	for (int i = 0; i < aTracks.length; i++) {
+        		sb.append(aTracks[i].toString()); sb.append('|');
         	}
         	sb.deleteCharAt(sb.length()-1);
         	
@@ -108,19 +150,7 @@ public class PostingsListGenerator extends Configured implements Tool{
 
        Configuration conf = getConf();
 
-       if (args != null) {
-           for (String a : args) { System.out.println("arg: " + a); }
-       } else {
-           System.out.println("args is null");
-       }
-        
-       Options options = new Options();
       
-
-       CommandLineParser parser = new PosixParser();
-       CommandLine cmd = parser.parse(options, args);
-   
-
     	
         
        Job job = new Job(conf);

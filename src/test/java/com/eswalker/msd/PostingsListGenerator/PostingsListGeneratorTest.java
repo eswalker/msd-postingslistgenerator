@@ -4,12 +4,10 @@
 package com.eswalker.msd.PostingsListGenerator;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.cli.ParseException;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
@@ -42,14 +40,13 @@ public class PostingsListGeneratorTest {
   
   }
  
-  @SuppressWarnings("deprecation")
   @Test
   public void testMapper() throws IOException {
     mapDriver.withInput(new LongWritable(), new Text(
         "1|TRAID|artist|title|1|hello,100"
     ));
 
-    mapDriver.withOutput(new Text("hello"), new Text("1,100"));
+    mapDriver.withOutput(new Text("hello"), new Text("1,100,1,100"));
     mapDriver.runTest();
   }
   
@@ -59,10 +56,11 @@ public class PostingsListGeneratorTest {
   @Test
   public void testReducer() throws IOException {
     List<Text> values = new ArrayList<Text>();
-    values.add(new Text("1,100"));
-    values.add(new Text("2,50"));
+    values.add(new Text("1,100,1,10"));
+    values.add(new Text("2,100,1,100"));
+    values.add(new Text("3,75,1,100"));
     reduceDriver.withInput(new Text("hello"), values );
-    reduceDriver.withOutput(NullWritable.get(), new Text("hello|1,100|2,50"));
+    reduceDriver.withOutput(NullWritable.get(), new Text("hello|2,100|1,100|3,75"));
     reduceDriver.runTest();
   }
   
